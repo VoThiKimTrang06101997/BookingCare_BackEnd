@@ -28,6 +28,10 @@ module.exports = {
       },
       gender: {
         type: Sequelize.STRING,
+        references: {
+          model: "AllCode",
+          foreignKey: "gender", targetKey:"keyMap", as: "genderData"         
+        }
       },
       image: {
         type: Sequelize.BOOLEAN,
@@ -37,6 +41,11 @@ module.exports = {
       },
       positionId: {
         type: Sequelize.STRING,
+        references: {
+          model: "AllCode",
+          foreignKey: "positionId", targetKey:"keyMap", as: "positionData"
+          
+        }
       },
       createdAt: {
         allowNull: false,

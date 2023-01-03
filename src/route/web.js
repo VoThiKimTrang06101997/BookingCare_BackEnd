@@ -3,6 +3,9 @@ import req from 'express/lib/request';
 import res from 'express/lib/response';
 import homeController from "../controllers/homeController";
 import userController from "../controllers/userController";
+import doctorController from "../controllers/doctorController";
+import patientController from "../controllers/patientController";
+import specialtyControler from "../controllers/specialtyControler";
 
 let router = express.Router();
 
@@ -26,6 +29,28 @@ let initWebRoutes = (app) => {
     router.delete("/api/delete-user", userController.handleDeleteUser);
 
     router.get("/api/allcode", userController.getAllCode);
+
+    // Doctor controller
+    router.get("/api/top-doctor-home", doctorController.getTopDoctorHome);
+
+    router.get("/api/get-all-doctors", doctorController.getAllDoctors);
+    router.post("/api/save-infor-doctors", doctorController.postInforDoctor)
+    router.get("/api/get-detail-doctor-by-id", doctorController.getDetailDoctorById)
+
+    // Detail Doctor
+    router.post("/api/bulk-create-schedule", doctorController.bulkCreateSchedule)
+    router.get("/api/get-schedule-doctor-by-date", doctorController.getScheduleByDate)
+    router.get("/api/get-extra-infor-doctor-by-id", doctorController.getExtraInforDoctorById)
+    router.get("/api/get-profile-doctor-by-id", doctorController.getProfileDoctorById)
+
+    // Patient
+    router.post("/api/patient-book-appointment", patientController.postBookAppoinment)
+    router.post("/api/verify-book-appointment", patientController.postVerifyBookAppoinment)
+
+    // Specialty
+    router.post("/api/create-new-specialty", specialtyControler.createSpecialty)
+    router.get("/api/get-specialty", specialtyControler.getAllSpecialty)
+    router.get("/api/get-detail-specialty-by-id", specialtyControler.getDetailSpecialtyById)
 
     return app.use("/", router);
 }

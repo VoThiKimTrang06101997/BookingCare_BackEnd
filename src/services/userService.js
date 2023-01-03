@@ -90,7 +90,7 @@ let getAllUsers = (userId) => {
       if (userId === "ALL") {
         users = db.User.findAll({
           attributes: {
-            exclude: ["password"],
+            exclude: ['password']
           },
         });
       }
@@ -133,7 +133,8 @@ let createNewUser = async (data) => {
           //gender: data.gender == "1" ? true : false,
           gender: data.gender,
           roleId: data.roleId,
-          positionId: data.positionId
+          positionId: data.positionId,
+          image: data.avatar
         });
       }
 
@@ -202,6 +203,10 @@ let updateUser = (data) => {
         user.positionId = data.positionId;
         user.gender = data.gender;
 
+        if(data.avatar) {
+          user.image = data.avatar;
+        }
+      
         await user.save();
 
         // await db.User.save({
