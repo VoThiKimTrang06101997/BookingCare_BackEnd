@@ -1,5 +1,6 @@
 import _, { reject } from "lodash";
 import db from "../models/index";
+import emailService from "./emailService";
 require("dotenv").config();
 
 const MAX_NUMBER_SCHEDULE = process.env.MAX_NUMBER_SCHEDULE;
@@ -9,8 +10,8 @@ let getTopDoctorHome = (limitInput) => {
     try {
       let users = await db.User.findAll({
         limit: limitInput,
-        where: { roleId: "Bác sĩ" },
-        // where: { roleId: "R2" },
+        // where: { roleId: "Bác sĩ" },
+        where: { roleId: "R2" },
         order: [["createdAt", "DESC"]],
         attributes: {
           exclude: ["password"],
@@ -45,8 +46,8 @@ let getAllDoctors = () => {
   return new Promise(async (resolve, reject) => {
     try {
       let doctors = await db.User.findAll({
-        where: { roleId: "Bác sĩ" },
-        // where: { roleId: "R2" },
+        // where: { roleId: "Bác sĩ" },
+        where: { roleId: "R2" },
         attributes: {
           exclude: ["password", "image"],
         },
@@ -63,30 +64,41 @@ let getAllDoctors = () => {
 };
 
 let checkRequiredFields = (inputData) => {
-  let arrayFields = ['doctorId', 'contentHTML', 'contentMarkDown', 'action', 'selectedPrice', 'selectedPayment', 'selectedProvince', 'nameClinic', 'addressClinic', 'note', 'specialtyId']
+  let arrayFields = [
+    "doctorId",
+    "contentHTML",
+    "contentMarkDown",
+    "action",
+    "selectedPrice",
+    "selectedPayment",
+    "selectedProvince",
+    "nameClinic",
+    "addressClinic",
+    "note",
+    "specialtyId",
+    "clinicId",
+  ];
 
   let isValid = true;
-  let element = '';
+  let element = "";
   for (let index = 0; index < arrayFields.length; index++) {
-    if(!inputData[arrayFields[index]]) {
+    if (!inputData[arrayFields[index]]) {
       isValid = false;
-      element = arrayFields[index]
+      element = arrayFields[index];
       break;
-    }   
+    }
   }
-
   return {
     isValid: isValid,
-    element: element
-  }
-}
+    element: element,
+  };
+};
 
 let saveDetailInforDoctor = (inputData) => {
   return new Promise(async (resolve, reject) => {
-    try {    
-      let checkObject = checkRequiredFields(inputData);    // hàm checkRequiredFields được viết ở trên
+    try {
+      let checkObject = checkRequiredFields(inputData); // hàm checkRequiredFields được viết ở trên
 
-      
       if (checkObject === false) {
         resolve({
           errorCode: 1,
@@ -118,10 +130,11 @@ let saveDetailInforDoctor = (inputData) => {
         }
 
         // Upsert To Doctor_Infor Table
-        
+
         let doctorInfor = await db.Doctor_Infor.findOne({
           where: {
             doctorId: inputData.doctorId,
+            clinicId: inputData.clinicId,
           },
           raw: false,
         });
@@ -129,6 +142,7 @@ let saveDetailInforDoctor = (inputData) => {
         if (doctorInfor) {
           // Update
           doctorInfor.doctorId = inputData.doctorId;
+          doctorInfor.clinicId = inputData.clinicId;
           doctorInfor.priceId = inputData.selectedPrice;
           doctorInfor.provinceId = inputData.selectedProvince;
           doctorInfor.paymentId = inputData.selectedPayment;
@@ -144,6 +158,7 @@ let saveDetailInforDoctor = (inputData) => {
           // Create
           await db.Doctor_Infor.create({
             doctorId: inputData.doctorId,
+            clinicId: inputData.clinicId,
             priceId: inputData.selectedPrice,
             provinceId: inputData.selectedProvince,
             paymentId: inputData.selectedPayment,
@@ -391,7 +406,7 @@ let getExtraInforDoctorById = (idInput) => {
             },
           ],
           raw: false,
-          nest: true
+          nest: true,
         });
 
         if (!data) data = {};
@@ -407,7 +422,7 @@ let getExtraInforDoctorById = (idInput) => {
 };
 
 let getProfileDoctorById = (inputId) => {
-  return new Promise (async(resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     try {
       if (!inputId) {
         resolve({
@@ -437,7 +452,7 @@ let getProfileDoctorById = (inputId) => {
               attributes: {
                 exclude: ["id", "doctorId"],
               },
-              include: [               
+              include: [
                 {
                   model: db.AllCode,
                   as: "priceTypeData",
@@ -474,11 +489,97 @@ let getProfileDoctorById = (inputId) => {
         });
       }
     } catch (error) {
-      reject(error)
+      reject(error);
     }
-  })
-}
+  });
+};
 
+let getListPatientForDoctor = (doctorId, date) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      if (!doctorId || !date) {
+        resolve({
+          errorCode: 1,
+          errorMessage: "Missing required parameter!",
+        });
+      } else {
+        let data = await db.Booking.findAll({
+          where: {
+            statusId: "S2",
+            doctorId: doctorId,
+            date: date,
+          },
+          include: [
+            {
+              model: db.User,
+              as: "patientData",
+              attributes: ["email", "firstName", "address", "gender"],
+              include: [
+                {
+                  model: db.AllCode,
+                  as: "genderData",
+                  attributes: ["value_en", "value_vi"],
+                },
+              ],
+            },
+            {
+              model: db.AllCode,
+              as: "timeTypeDataPatient",
+              attributes: ["value_en", "value_vi"],
+            },
+          ],
+          raw: false,
+          nest: true,
+        });
+        resolve({
+          errorCode: 0,
+          data: data,
+        });
+      }
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+let sendRemedy = (data) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      if (!data.email || !data.doctorId || !data.patientId || !data.timeType) {
+        resolve({
+          errorCode: 1,
+          errorMessage: "Missing required parameter!",
+        });
+      } else {
+        // Update Patient Status
+        let appointment = await db.Booking.findOne({
+          where: {
+            doctorId: data.doctorId,
+            patientId: data.patientId,
+            timeType: data.timeType,
+            statusId: 'S2'
+          },
+          raw: false
+        })
+
+        if(appointment) {
+          appointment.statusId = 'S3'
+          await appointment.save()
+        }
+
+        // Send Email Remedy: In hóa đơn
+        await emailService.sendAttachment(data);
+        resolve({
+          errorCode: 0,
+          errorMessage: "OK"
+          // data: data,
+        });
+      }
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
 
 module.exports = {
   getTopDoctorHome: getTopDoctorHome,
@@ -488,5 +589,7 @@ module.exports = {
   bulkCreateSchedule: bulkCreateSchedule,
   getScheduleByDate: getScheduleByDate,
   getExtraInforDoctorById: getExtraInforDoctorById,
-  getProfileDoctorById: getProfileDoctorById
+  getProfileDoctorById: getProfileDoctorById,
+  getListPatientForDoctor: getListPatientForDoctor,
+  sendRemedy: sendRemedy,
 };

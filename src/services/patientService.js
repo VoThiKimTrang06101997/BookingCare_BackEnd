@@ -18,7 +18,9 @@ let postBookAppoinment = (data) => {
         !data.doctorId ||
         !data.timeType ||
         !data.date ||
-        !data.fullName
+        !data.fullName ||
+        !data.selectedGender ||
+        !data.address
       ) {
         resolve({
           errorCode: 1,
@@ -29,7 +31,7 @@ let postBookAppoinment = (data) => {
         //   data
         // })
         // return;
-        let token = uuidv4();
+        let token = uuidv4();      // Tạo token
         await emailService.sendSimpleEmail({
           receiverEmail: data.email,
           patientName: data.fullName,
@@ -45,6 +47,9 @@ let postBookAppoinment = (data) => {
           defaults: {
             email: data.email,
             roleId: "R3",
+            gender: data.selectedGender,
+            address: data.address,
+            firstName: data.fullName
           },
         });
         // console.log("Check User: ", user[0])
@@ -91,9 +96,9 @@ let postVerifyBookAppoinment = (data) => {
         });
 
         if (appointment) {
-          appointment.statusId = 'S2'
+          appointment.statusId = "S2";
           await appointment.save();
-          
+
           resolve({
             errorCode: 0,
             errorMessage: "Update the appointment successfully!!",
@@ -110,6 +115,8 @@ let postVerifyBookAppoinment = (data) => {
     }
   });
 };
+
+
 
 module.exports = {
   postBookAppoinment: postBookAppoinment,
